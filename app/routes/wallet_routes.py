@@ -1,54 +1,155 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
+
+from app.services import wallet_service as services
+from app.schemas import wallet_schema as schemas
 from app.dependencies.auth_dependency import get_current_user
-from app.models.wallet_schema import WalletCreate, DepositRequest, WithdrawRequest
-from app.services.wallet_service import (
-    create_wallet,
-    deposit_money,
-    withdraw_money,
-    get_wallet,
-    get_transactions
+
+
+router = APIRouter(
+    prefix="/wallet",
+    tags=["Wallet Management"]
 )
 
-router = APIRouter(prefix="/wallet", tags=["Wallet"])
 
-
-@router.post("/create")
-async def create_user_wallet(
-    data: WalletCreate,
-    user=Depends(get_current_user)
-):
-    wallet = await create_wallet(user["email"], data.currency)
-    return wallet
-
-
-@router.get("/balance")
-async def wallet_balance(user=Depends(get_current_user)):
-    wallet = await get_wallet(user["email"])
-    return wallet
-
-
-@router.post("/deposit")
-async def deposit(
-    data: DepositRequest,
-    user=Depends(get_current_user)
-):
-    await deposit_money(user["email"], data.amount)
-    return {"message": "Deposit successful"}
-
-
-@router.post("/withdraw")
-async def withdraw(
-    data: WithdrawRequest,
-    user=Depends(get_current_user)
+# -------------------------
+# Create Wallet
+# -------------------------
+@router.post("/create", response_model=schemas.WalletResponse)
+async def create_wallet(
+    data: schemas.WalletCreate,
+    user: dict = Depends(get_current_user)
 ):
     try:
-        await withdraw_money(user["email"], data.amount)
-        return {"message": "Withdraw successful"}
+        wallet = await services.create_wallet(
+            user_id=user["user_id"],
+            currency=data.currency,
+            wallet_type=data.wallet_type
+        )
+        return wallet
+
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@router.get("/transactions")
-async def transactions(user=Depends(get_current_user)):
-    txns = await get_transactions(user["email"])
-    return txns
+# -------------------------
+# Get Wallet Details
+# -------------------------
+@router.get("/{currency}", response_model=schemas.WalletResponse)
+async def get_wallet(
+    currency: str,
+    user: dict = Depends(get_current_user)
+):
+    wallet = await services.get_wallet(user["user_id"], currency)
+
+    if not wallet:
+        raise HTTPException(status_code=404, detail="Wallet not found")
+
+    wallet["_id"] = str(wallet["_id"])
+    return wallet
+
+
+# -------------------------
+# Credit Wallet
+# -------------------------
+@router.post("/credit/{currency}")
+async def credit_wallet(
+    currency: str,
+    data: schemas.AmountRequest,
+    user: dict = Depends(get_current_user)
+):
+    try:
+        await services.credit_wallet(
+            user["user_id"],
+            currency,
+            data.amount
+        )
+        return {"message": "Wallet credited successfully"}
+
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+# -------------------------
+# Debit Wallet
+# -------------------------
+@router.post("/debit/{currency}")
+async def debit_wallet(
+    currency: str,
+    data: schemas.AmountRequest,
+    user: dict = Depends(get_current_user)
+):
+    try:
+        await services.debit_wallet(
+            user["user_id"],
+            currency,
+            data.amount
+        )
+        return {"message": "Wallet debited successfully"}
+
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+# -------------------------
+# Lock Balance
+# -------------------------
+@router.post("/lock/{currency}")
+async def lock_wallet(
+    currency: str,
+    data: schemas.AmountRequest,
+    user: dict = Depends(get_current_user)
+):
+    try:
+        await services.lock_balance(
+            user["user_id"],
+            currency,
+            data.amount
+        )
+        return {"message": "Amount locked successfully"}
+
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+# -------------------------
+# Unlock Balance
+# -------------------------
+@router.post("/unlock/{currency}")
+async def unlock_wallet(
+    currency: str,
+    data: schemas.AmountRequest,
+    user: dict = Depends(get_current_user)
+):
+    try:
+        await services.unlock_balance(
+            user["user_id"],
+            currency,
+            data.amount
+        )
+        return {"message": "Amount unlocked successfully"}
+
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+# -------------------------
+# Transaction History
+# -------------------------
+@router.get("/transactions/{currency}")
+async def get_transactions(
+    currency: str,
+    user: dict = Depends(get_current_user)
+):
+    try:
+        transactions = await services.get_transactions(
+            user["user_id"],
+            currency
+        )
+
+        for txn in transactions:
+            txn["_id"] = str(txn["_id"])
+
+        return transactions
+
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
