@@ -21,13 +21,14 @@ async def create_wallet(user_id, currency, wallet_type):
         "user_id": user_id,
         "currency": currency,
         "wallet_type": wallet_type,
-        "balance": 0,
-        "locked_balance": 0
+        "balance": 0.0,
+        "locked_balance": 0.0
     }
 
-    await wallet_collection.insert_one(wallet)
-    return wallet
+    result = await wallet_collection.insert_one(wallet)
+    wallet["_id"] = str(result.inserted_id)
 
+    return wallet
 
 # -------------------------
 # Get Wallet
@@ -50,14 +51,14 @@ async def get_wallet(user_id, currency):
 # -------------------------
 async def credit_wallet(user_id, currency, amount):
 
+    wallet = await get_wallet(user_id, currency)  # ensure exists
+
     await wallet_collection.update_one(
         {"user_id": user_id, "currency": currency},
         {"$inc": {"balance": amount}}
     )
 
-    # Transaction log
     await create_transaction(user_id, currency, amount, "credit")
-
 
 # -------------------------
 # Debit Wallet
@@ -122,3 +123,18 @@ async def unlock_balance(user_id, currency, amount):
     )
 
     await create_transaction(user_id, currency, amount, "unlock")
+
+from app.config.database import db
+
+txn_collection = db.transactions
+
+# -------------------------
+# Get Transactions
+# -------------------------
+async def get_transactions(user_id, currency):
+    transactions = await txn_collection.find({
+        "user_id": user_id,
+        "currency": currency
+    }).to_list(length=100)
+
+    return transactions

@@ -17,11 +17,11 @@ router = APIRouter(
 @router.post("/create", response_model=schemas.WalletResponse)
 async def create_wallet(
     data: schemas.WalletCreate,
-    user: dict = Depends(get_current_user)
+    user: str = Depends(get_current_user)   # change type hint also
 ):
     try:
         wallet = await services.create_wallet(
-            user_id=user["user_id"],
+            user_id=user,   # just pass user
             currency=data.currency,
             wallet_type=data.wallet_type
         )
@@ -30,16 +30,15 @@ async def create_wallet(
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-
 # -------------------------
 # Get Wallet Details
 # -------------------------
 @router.get("/{currency}", response_model=schemas.WalletResponse)
 async def get_wallet(
     currency: str,
-    user: dict = Depends(get_current_user)
+    user: str = Depends(get_current_user)
 ):
-    wallet = await services.get_wallet(user["user_id"], currency)
+    wallet = await services.get_wallet(user, currency)
 
     if not wallet:
         raise HTTPException(status_code=404, detail="Wallet not found")
@@ -55,11 +54,11 @@ async def get_wallet(
 async def credit_wallet(
     currency: str,
     data: schemas.AmountRequest,
-    user: dict = Depends(get_current_user)
+    user: str = Depends(get_current_user)
 ):
     try:
         await services.credit_wallet(
-            user["user_id"],
+            user,
             currency,
             data.amount
         )
@@ -76,11 +75,11 @@ async def credit_wallet(
 async def debit_wallet(
     currency: str,
     data: schemas.AmountRequest,
-    user: dict = Depends(get_current_user)
+    user: str = Depends(get_current_user)
 ):
     try:
         await services.debit_wallet(
-            user["user_id"],
+            user,
             currency,
             data.amount
         )
@@ -97,11 +96,11 @@ async def debit_wallet(
 async def lock_wallet(
     currency: str,
     data: schemas.AmountRequest,
-    user: dict = Depends(get_current_user)
+    user: str = Depends(get_current_user)
 ):
     try:
         await services.lock_balance(
-            user["user_id"],
+            user,
             currency,
             data.amount
         )
@@ -118,11 +117,11 @@ async def lock_wallet(
 async def unlock_wallet(
     currency: str,
     data: schemas.AmountRequest,
-    user: dict = Depends(get_current_user)
+    user: str = Depends(get_current_user)
 ):
     try:
         await services.unlock_balance(
-            user["user_id"],
+            user,
             currency,
             data.amount
         )
@@ -138,11 +137,11 @@ async def unlock_wallet(
 @router.get("/transactions/{currency}")
 async def get_transactions(
     currency: str,
-    user: dict = Depends(get_current_user)
+    user: str = Depends(get_current_user)
 ):
     try:
         transactions = await services.get_transactions(
-            user["user_id"],
+            user,
             currency
         )
 
