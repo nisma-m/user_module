@@ -5,7 +5,7 @@ from app.routes import auth_routes, wallet_routes, test_routes
 
 app = FastAPI()
 
-# Auth + Wallet (mem1 + mem2)
+# Auth + Wallet
 app.include_router(auth_routes.router)
 app.include_router(wallet_routes.router)
 
